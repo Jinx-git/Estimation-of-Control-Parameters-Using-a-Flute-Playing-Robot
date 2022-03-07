@@ -8,24 +8,31 @@ import glob
 import os
 import itertools
 from tqdm import tqdm
-from Model.Dataset import Dataset, HumanDataset
 from argparse import ArgumentParser
+from Model.Dataset import Dataset, HumanDataset
 
-def get_option(batch, epoch, rank_ratio, lr):
+
+def get_option(batch, epoch, mse_ratio, rank_ratio, lr, test_size):
     argparser = ArgumentParser()
-    argparser.add_argument('n')
+    argparser.add_argument('saveModelName')
     argparser.add_argument('-b', '--batch', type=int,
                            default=batch,
                            help='Specify size of batch')
     argparser.add_argument('-e', '--epoch', type=int,
                            default=epoch,
                            help='Specify number of epoch')
+    argparser.add_argument('-mse', '--mseTrainRatio', type=float,
+                           default=mse_ratio,
+                           help='Coefficients for mean square error loss')
     argparser.add_argument('-r', '--rankTrainRatio', type=float,
                            default=rank_ratio,
-                           help='Coefficients for ranking learning')
+                           help='Coefficients for ranking loss')
     argparser.add_argument('-lr', '--learningRate', type=float,
                            default=lr,
                            help='Learning Rate')
+    argparser.add_argument('-ts', '--testDataSize', type=float,
+                           default=test_size,
+                           help='Test data size')
     return argparser.parse_args()
 
 
@@ -36,19 +43,21 @@ def loss_f(x, y, t):
 
 
 def main():
-    test_size = 0.2
 
-    args = get_option(128, 100, 0.1, 0.00005)
 
-    model_name = args.n
+    args = get_option(128, 100, 1.0, 0.1, 0.00005, 0.2)
+
+    TEST_SIZE = args.testDataSize
+    MODEL_NAME = args.saveModelName
     BATCH_SIZE = args.batch
     EPOCH = args.epoch
-    rank_ratio = args.rankTrainRatio
+    MSE_RATIO = args.mseTrainRatio
+    RANK_RATIO = args.rankTrainRatio
     LEARNING_RATE = args.learningRate
 
     CPU_NUM= os.cpu_count()
     print("use " + str(CPU_NUM) + " cpus")
-    save_model_dir = os.path.join("./Model/saves/" + model_name)
+    save_model_dir = os.path.join("./Model/saves/" + MODEL_NAME)
 
     if not os.path.exists(save_model_dir):
         os.mkdir(save_model_dir)
@@ -62,13 +71,13 @@ def main():
     robot_dirs = glob.glob("./datasets/train/spectrogram/robot_performance/*/*")
     for robot_dir in robot_dirs:
         robot_datas = glob.glob(robot_dir + "/*")
-        tmp_train, tmp_val = train_test_split(robot_datas, test_size=test_size)
+        tmp_train, tmp_val = train_test_split(robot_datas, test_size=TEST_SIZE)
         train_robot.append(tmp_train)
         val_robot.append(tmp_val)
     human_dirs = glob.glob("./datasets/train/spectrogram/human_performance/*/*")
     for human_dir in human_dirs:
         human_datas = glob.glob(human_dir + "/*")
-        tmp_train, tmp_val = train_test_split(human_datas, test_size=test_size)
+        tmp_train, tmp_val = train_test_split(human_datas, test_size=TEST_SIZE)
         train_human.append(tmp_train)
         val_human.append(tmp_val)
 
@@ -162,8 +171,8 @@ def main():
                     loss_robot_flow = nn.functional.mse_loss(outputs_robot_flow[:, 0], flows.view(-1))
                     loss_human_flow = loss_f(outputs_human1_flow, outputs_human2_flow, human_flows)
 
-                    loss_angle = loss_robot_angle + rank_ratio * loss_human_angle
-                    loss_flow = loss_robot_flow + rank_ratio * loss_human_flow
+                    loss_angle = MSE_RATIO * loss_robot_angle + RANK_RATIO * loss_human_angle
+                    loss_flow = MSE_RATIO * loss_robot_flow + RANK_RATIO * loss_human_flow
                     # loss_robot.backward()
 
                     loss_angle.backward()

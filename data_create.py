@@ -2,9 +2,6 @@ import numpy as np
 import glob
 import librosa
 import librosa.display
-from matplotlib import pyplot as plt
-from tqdm import tqdm
-import mpl_toolkits.axes_grid1
 import os
 import sys
 

@@ -1,15 +1,13 @@
 import os.path
-import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 import glob
-# from Model import AlexNet, MobileNet, ResNet
-
-from Model import Dataset
 from mlp_mixer_pytorch import MLPMixer
 import matplotlib.pyplot as plt
 from argparse import ArgumentParser
+from Model import Dataset
+
 
 def get_option():
     argparser = ArgumentParser()
